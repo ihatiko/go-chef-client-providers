@@ -197,7 +197,7 @@ func (c *Config) newWriter() (*kafka.Writer, error) {
 		Addr:                   kafka.TCP(c.Hosts...),
 		Topic:                  c.Topic,
 		AllowAutoTopicCreation: c.AllowAutoTopicCreation,
-		Transport:              kafka.DefaultTransport,
+		Transport:              transport,
 		Compression:            kafka.Snappy,
 		Balancer:               &kafka.Hash{},
 	}
