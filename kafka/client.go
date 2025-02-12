@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"github.com/bytedance/sonic"
 	"github.com/ihatiko/go-chef-core-sdk/store"
@@ -69,21 +70,23 @@ func (c *Client) getDialer() *kafka.Dialer {
 	return dialer
 }
 func (c *Client) checkKafkaConnectivity(ctx context.Context) error {
-	var errors []error
+	var errorsGroup []error
 
 	wg := &sync.WaitGroup{}
 	wg.Add(len(c.config.Hosts))
 	for _, addr := range c.config.Hosts {
 		go func(addr string) {
+			defer wg.Done()
 			_, err := c.getDialer().DialContext(ctx, "tcp", addr)
-			errors = append(errors, err)
+			errorsGroup = append(errorsGroup, err)
 		}(addr)
 	}
 	wg.Wait()
-	if float32(len(errors))/float32(len(c.config.Hosts)) > 0.6 {
+	percent := 1 - float32(len(errorsGroup))/float32(len(c.config.Hosts))
+	if percent < 0.6 {
 		return nil
 	}
-	return fmt.Errorf("kafka errors: %s", errors)
+	return fmt.Errorf("kafka errors: %s", errorsGroup)
 }
 func (c *Client) HasError() bool {
 	return c.initError != nil
@@ -151,14 +154,16 @@ func (c *Client) ProduceByPartitionKey(ctx context.Context, key string, data ...
 func (c *Config) New() IClient {
 	client := new(Client)
 	client.config = *c
+	defer store.PackageStore.Load(client)
+	if len(client.config.Hosts) == 0 {
+		client.initError = errors.New("no hosts provided")
+		return client
+	}
 	client.writer, client.initError = c.newWriter()
 	if client.initError != nil {
 		return client
 	}
-	ctx, cancelFunc := context.WithTimeout(context.Background(), client.writer.WriteTimeout)
-	client.initError = client.checkKafkaConnectivity(ctx)
-	store.PackageStore.Load(client)
-	defer cancelFunc()
+	client.initError = client.checkKafkaConnectivity(context.TODO())
 	return client
 }
 
