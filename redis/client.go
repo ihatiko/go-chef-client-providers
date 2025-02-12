@@ -43,6 +43,9 @@ func (c Client) HasError() bool {
 	return c.err != nil
 }
 
+func (c Client) AfterShutdown() error {
+	return c.Db.Close()
+}
 func (c *Config) New() Client {
 	client := Client{cfg: c}
 	if c.ConnMaxLifetime == 0 {

@@ -1,0 +1,4 @@
+[producer]
+hosts = ["localhost:9092"]
+topic = "example"
+allow_auto_topic_creation=true

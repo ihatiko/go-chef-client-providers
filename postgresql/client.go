@@ -82,7 +82,9 @@ func (c Client) HasError() bool {
 func (c Client) Name() string {
 	return fmt.Sprintf("name: %s host:%s port: %d database: %s", postgresql, c.cfg.Host, c.cfg.Port, c.cfg.Database)
 }
-
+func (c Client) AfterShutdown() error {
+	return c.Db.Close()
+}
 func (c *Config) New() Client {
 	pg, err := c.newConnection()
 	client := Client{Db: pg, cfg: c, err: err}
