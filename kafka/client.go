@@ -11,7 +11,6 @@ import (
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"go.opentelemetry.io/otel"
-	"log/slog"
 	"strings"
 	"sync"
 )
@@ -201,8 +200,6 @@ func (c *Config) newWriter() (*kafka.Writer, error) {
 		Transport:              kafka.DefaultTransport,
 		Compression:            kafka.Snappy,
 		Balancer:               &kafka.Hash{},
-		Logger:                 kafka.LoggerFunc(slog.Info),
-		ErrorLogger:            kafka.LoggerFunc(slog.Error),
 	}
 	if c.ReadTimeout != 0 {
 		writer.ReadTimeout = c.ReadTimeout
