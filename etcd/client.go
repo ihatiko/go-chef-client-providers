@@ -11,7 +11,7 @@ import (
 
 type Client struct {
 	config    Config
-	Cli       *clientv3.Client
+	Db        *clientv3.Client
 	initError error
 }
 
@@ -28,7 +28,7 @@ const (
 )
 
 func (c *Client) AfterShutdown() error {
-	return c.Cli.Close()
+	return c.Db.Close()
 }
 func (c *Client) Name() string {
 	return fmt.Sprintf(
@@ -69,6 +69,6 @@ func (c Config) New() *Client {
 	}
 	cli, err := clientv3.New(config)
 	client.initError = err
-	client.Cli = cli
+	client.Db = cli
 	return client
 }

@@ -14,7 +14,7 @@ const (
 type Client struct {
 	initError error
 	config    *Config
-	Cli       *minio.Client
+	Db        *minio.Client
 }
 
 func (c *Client) Error() error {
@@ -43,7 +43,7 @@ func (c Config) New() *Client {
 	if opts.MaxRetries > 0 {
 		opts.MaxRetries = c.MaxRetries
 	}
-	client.Cli, client.initError = minio.New(c.Host, opts)
+	client.Db, client.initError = minio.New(c.Host, opts)
 
 	return client
 }
