@@ -4,4 +4,6 @@ use (
 	./postgresql
 	./redis
 	./kafka
+	./etcd
+	./s3
 )

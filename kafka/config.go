@@ -27,7 +27,7 @@ type Config struct {
 	// it attempts to write a batch of messages
 	//
 	// Default: 1s
-	WriteBackoffMax time.Duration `json:"write_backoff_min"`
+	WriteBackoffMax time.Duration `toml:"write_backoff_min"`
 
 	// Limit on how many messages will be buffered before being sent to a
 	// partition.
@@ -80,7 +80,7 @@ type Config struct {
 	// handshake, SASL negotiation, etc...).
 	//
 	// Defaults to 5s.
-	DialTimeout time.Duration
+	DialTimeout time.Duration `toml:"dial_timeout"`
 
 	// Maximum amount of time that connections will remain open and unused.
 	// The transport will manage to automatically close connections that have
@@ -88,7 +88,7 @@ type Config struct {
 	// used again.
 	//
 	// Defaults to 30s.
-	IdleTimeout time.Duration
+	IdleTimeout time.Duration `toml:"idle_timeout"`
 
 	// TTL for the metadata cached by this transport. Note that the value
 	// configured here is an upper bound, the transport randomizes the TTLs to
@@ -96,8 +96,8 @@ type Config struct {
 	// cause bursts of requests to the kafka broker.
 	//
 	// Default to 6s.
-	MetadataTTL time.Duration
-	Login       string `toml:"login"`
-	Password    string `toml:"password"`
-	PEM         string `toml:"pem"`
+	MetadataTTL time.Duration `toml:"metadata_ttl"`
+	Login       string        `toml:"login"`
+	Password    string        `toml:"password"`
+	PEM         string        `toml:"pem"`
 }

@@ -3,9 +3,9 @@ package redis
 import (
 	"context"
 	"fmt"
+	"github.com/ihatiko/go-chef-core-sdk/store"
 	"time"
 
-	"github.com/ihatiko/go-chef-core-sdk/store"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 )
@@ -18,7 +18,7 @@ const (
 	defaultConnMaxIdleTime    = 20
 )
 const (
-	keyValue = "key/value"
+	keyValue = "key-value"
 )
 
 type Client struct {
@@ -48,6 +48,7 @@ func (c Client) AfterShutdown() error {
 }
 func (c *Config) New() Client {
 	client := Client{cfg: c}
+	defer store.PackageStore.Load(client)
 	if c.ConnMaxLifetime == 0 {
 		c.ConnMaxLifetime = defaultConnMaxLifetime * time.Second
 	}
@@ -60,19 +61,19 @@ func (c *Config) New() Client {
 	if c.WriteTimeout == 0 {
 		c.WriteTimeout = defaultWriteTimeout * time.Second
 	}
-	if c.MaxIdleConns == 0 {
-		c.MaxIdleConns = defaultMaxIdleConnections
+	if c.MaxIdleConnections == 0 {
+		c.MaxIdleConnections = defaultMaxIdleConnections
 	}
-	if c.Sentinels {
+	if len(c.SentinelHosts) > 0 {
 		client.Db = redis.NewFailoverClient(&redis.FailoverOptions{
 			MasterName:      c.MasterName,
-			SentinelAddrs:   c.SentinelAddrs,
+			SentinelAddrs:   c.SentinelHosts,
 			DB:              c.Database,
 			WriteTimeout:    c.WriteTimeout,
 			ReadTimeout:     c.ReadTimeout,
 			ConnMaxIdleTime: c.ConnMaxIdleTime,
 			ConnMaxLifetime: c.ConnMaxLifetime,
-			MaxIdleConns:    c.MaxIdleConns,
+			MaxIdleConns:    c.MaxIdleConnections,
 		})
 	} else {
 		client.Db = redis.NewClient(&redis.Options{
@@ -84,7 +85,7 @@ func (c *Config) New() Client {
 			ReadTimeout:     c.ReadTimeout,
 			ConnMaxIdleTime: c.ConnMaxIdleTime,
 			ConnMaxLifetime: c.ConnMaxLifetime,
-			MaxIdleConns:    c.MaxIdleConns,
+			MaxIdleConns:    c.MaxIdleConnections,
 		})
 	}
 	if err := redisotel.InstrumentTracing(client.Db); err != nil {
@@ -92,6 +93,6 @@ func (c *Config) New() Client {
 		return client
 	}
 	client.err = client.Db.Ping(context.Background()).Err()
-	store.PackageStore.Load(client)
+
 	return client
 }

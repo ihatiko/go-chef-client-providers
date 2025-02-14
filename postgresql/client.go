@@ -51,10 +51,10 @@ func (c *Config) toPgConnection() string {
 		queryExecMode = defaultQueryExecMode
 	}
 
-	dataSourceName := fmt.Sprintf("host=%s port=%d user=%s dbname=%s password=%s sslmode=%s default_query_exec_mode=%s",
+	dataSourceName := fmt.Sprintf("host=%s port=%d login=%s dbname=%s password=%s sslmode=%s default_query_exec_mode=%s",
 		c.Host,
 		c.Port,
-		c.User,
+		c.Login,
 		c.Database,
 		c.Password,
 		c.SSLMode,

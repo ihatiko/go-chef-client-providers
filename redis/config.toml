@@ -1,0 +1,6 @@
+[redis]
+host = "localhost"
+database = 0
+# login = "login"
+# password = "password"
+# sentinel_hosts = []
