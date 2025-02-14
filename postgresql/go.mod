@@ -1,4 +1,4 @@
-module github.com/ihatiko/go-chef-client-providers/postgresql
+module github.com/ihatiko/go-chef-clients-providers/postgresql
 
 go 1.23.4
 

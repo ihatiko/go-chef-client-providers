@@ -1,4 +1,4 @@
-module github.com/ihatiko/go-chef-client-providers/redis
+module github.com/ihatiko/go-chef-clients-providers/redis
 
 go 1.23.4
 

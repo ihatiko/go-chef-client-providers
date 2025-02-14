@@ -1,4 +1,4 @@
-module github.com/ihatiko/go-chef-client-providers/kafka
+module github.com/ihatiko/go-chef-clients-providers/kafka
 
 go 1.23.4
 
