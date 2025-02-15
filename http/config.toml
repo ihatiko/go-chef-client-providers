@@ -1,0 +1,3 @@
+[http]
+host = "https://jsonplaceholder.typicode.com/"
+health_host = "https://jsonplaceholder.typicode.com/"

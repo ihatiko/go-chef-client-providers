@@ -1,10 +1,12 @@
 package s3
 
 import (
+	"context"
 	"fmt"
 	"github.com/ihatiko/go-chef-core-sdk/store"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"time"
 )
 
 const (
@@ -17,6 +19,10 @@ type Client struct {
 	Db        *minio.Client
 }
 
+func (c *Client) Live(ctx context.Context) error {
+	_, err := c.Db.HealthCheck(c.config.HealthTimeout)
+	return err
+}
 func (c *Client) Error() error {
 	return c.initError
 }
@@ -43,6 +49,10 @@ func (c Config) New() *Client {
 	if opts.MaxRetries > 0 {
 		opts.MaxRetries = c.MaxRetries
 	}
+	if c.HealthTimeout == 0 {
+		c.HealthTimeout = time.Second * 5
+	}
+	client.config = &c
 	client.Db, client.initError = minio.New(c.Host, opts)
 
 	return client

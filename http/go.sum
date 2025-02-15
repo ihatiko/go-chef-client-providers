@@ -1,0 +1,5 @@
+github.com/ihatiko/go-chef-core-sdk v0.0.1 h1:jThgAzK3roDtVuqD7RicYg70rLHMpl5zrvnhFp+rd34=
+github.com/ihatiko/go-chef-core-sdk v0.0.1/go.mod h1:nw6Mx+7PWWI8fW9H17CIGHNYCpzNZVGPua3jr9Wq7z4=
+golang.org/x/net v0.35.0 h1:T5GQRQb2y08kTAByq9L4/bz8cipCdA8FbRTXewonqY8=
+resty.dev/v3 v3.0.0-beta.1 h1:EFhr5p7fbqbz6QKQFTUK7OF+rH//zEdihdVIA4t80VQ=
+resty.dev/v3 v3.0.0-beta.1/go.mod h1:OgkqiPvTDtOuV4MGZuUDhwOpkY8enjOsjjMzeOHefy4=

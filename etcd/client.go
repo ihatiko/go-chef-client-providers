@@ -1,12 +1,14 @@
 package etcd
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"github.com/ihatiko/go-chef-core-sdk/store"
 	etcd "go.etcd.io/etcd/client/v3"
 	"strings"
+	"sync"
 )
 
 type Client struct {
@@ -21,6 +23,25 @@ func (c *Client) Error() error {
 
 func (c *Client) HasError() bool {
 	return c.initError != nil
+}
+func (c *Client) Live(ctx context.Context) error {
+	var errorsGroup []error
+
+	wg := &sync.WaitGroup{}
+	wg.Add(len(c.config.Hosts))
+	for _, addr := range c.config.Hosts {
+		go func(addr string) {
+			defer wg.Done()
+			_, err := c.Db.Status(ctx, addr)
+			errorsGroup = append(errorsGroup, err)
+		}(addr)
+	}
+	wg.Wait()
+	percent := 1 - float32(len(errorsGroup))/float32(len(c.config.Hosts))
+	if percent < 0.6 {
+		return nil
+	}
+	return fmt.Errorf("etcd errors: %s", errorsGroup)
 }
 
 const (
@@ -41,7 +62,7 @@ func (c Config) New() *Client {
 	client := new(Client)
 	defer store.PackageStore.Load(client)
 	client.config = c
-	config := clientv3.Config{
+	config := etcd.Config{
 		Endpoints:             c.Hosts,
 		Username:              c.Login,
 		Password:              c.Password,
@@ -67,7 +88,7 @@ func (c Config) New() *Client {
 		}
 		config.TLS = tlsConfig
 	}
-	cli, err := clientv3.New(config)
+	cli, err := etcd.New(config)
 	client.initError = err
 	client.Db = cli
 	return client

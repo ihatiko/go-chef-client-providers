@@ -1,10 +1,11 @@
 go 1.23.4
 
 use (
+	./clickhouse
+	./etcd
+	./http
+	./kafka
 	./postgresql
 	./redis
-	./kafka
-	./etcd
 	./s3
-	./clickhouse
 )
