@@ -89,10 +89,10 @@ func (c Config) New() *Client {
 		config.TLS = tlsConfig
 	}
 	cli, err := etcd.New(config)
+	client.Db = cli
 	client.initError = err
 	if client.initError == nil {
 		client.initError = client.Live(context.TODO())
 	}
-	client.Db = cli
 	return client
 }
