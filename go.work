@@ -6,4 +6,5 @@ use (
 	./kafka
 	./etcd
 	./s3
+	./clickhouse
 )

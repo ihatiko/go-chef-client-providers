@@ -1,0 +1,6 @@
+[clickhouse]
+hosts = ["127.0.0.1:9000"]
+database = "default"
+login = "default"
+password = ""
+max_exec_time = 60

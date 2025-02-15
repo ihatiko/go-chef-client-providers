@@ -5,13 +5,13 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/ihatiko/go-chef-core-sdk/store"
-	clientv3 "go.etcd.io/etcd/client/v3"
+	etcd "go.etcd.io/etcd/client/v3"
 	"strings"
 )
 
 type Client struct {
 	config    Config
-	Db        *clientv3.Client
+	Db        *etcd.Client
 	initError error
 }
 

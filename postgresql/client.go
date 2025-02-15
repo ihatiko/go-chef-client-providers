@@ -64,19 +64,19 @@ func (c *Config) toPgConnection() string {
 }
 
 type Client struct {
-	Db  *sqlx.DB
-	cfg *Config
-	err error
+	Db        *sqlx.DB
+	cfg       *Config
+	initError error
 }
 
 func (c Client) Live(ctx context.Context) error {
 	return c.Db.PingContext(ctx)
 }
 func (c Client) Error() error {
-	return c.err
+	return c.initError
 }
 func (c Client) HasError() bool {
-	return c.err != nil
+	return c.initError != nil
 }
 
 func (c Client) Name() string {
@@ -87,7 +87,7 @@ func (c Client) AfterShutdown() error {
 }
 func (c *Config) New() Client {
 	pg, err := c.newConnection()
-	client := Client{Db: pg, cfg: c, err: err}
+	client := Client{Db: pg, cfg: c, initError: err}
 	store.PackageStore.Load(client)
 	return client
 }

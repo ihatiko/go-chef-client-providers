@@ -1,5 +1,5 @@
 [etcd]
-hosts = "localhost:2379"
+hosts = ["localhost:2379"]
 dial_timeout = "5s"
 # login = "login"
 # password = "password"

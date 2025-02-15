@@ -18,17 +18,17 @@ const (
 	defaultConnMaxIdleTime    = 20
 )
 const (
-	keyValue = "key-value"
+	key = "redis"
 )
 
 type Client struct {
-	Db  *redis.Client
-	cfg *Config
-	err error
+	Db        *redis.Client
+	cfg       *Config
+	initError error
 }
 
 func (c Client) Name() string {
-	return fmt.Sprintf("name: %s host:%s database:%d", keyValue, c.cfg.Host, c.cfg.Database)
+	return fmt.Sprintf("name: %s host:%s database:%d", key, c.cfg.Host, c.cfg.Database)
 }
 
 func (c Client) Live(ctx context.Context) error {
@@ -36,11 +36,11 @@ func (c Client) Live(ctx context.Context) error {
 }
 
 func (c Client) Error() error {
-	return c.err
+	return c.initError
 }
 
 func (c Client) HasError() bool {
-	return c.err != nil
+	return c.initError != nil
 }
 
 func (c Client) AfterShutdown() error {
@@ -89,10 +89,10 @@ func (c *Config) New() Client {
 		})
 	}
 	if err := redisotel.InstrumentTracing(client.Db); err != nil {
-		client.err = err
+		client.initError = err
 		return client
 	}
-	client.err = client.Db.Ping(context.Background()).Err()
+	client.initError = client.Db.Ping(context.Background()).Err()
 
 	return client
 }
