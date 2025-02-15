@@ -54,6 +54,8 @@ func (c Config) New() *Client {
 	}
 	client.config = &c
 	client.Db, client.initError = minio.New(c.Host, opts)
-
+	if client.initError == nil {
+		client.initError = client.Live(context.TODO())
+	}
 	return client
 }
