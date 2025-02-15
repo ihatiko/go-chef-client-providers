@@ -90,6 +90,9 @@ func (c Config) New() *Client {
 	}
 	cli, err := etcd.New(config)
 	client.initError = err
+	if client.initError == nil {
+		client.initError = client.Live(context.TODO())
+	}
 	client.Db = cli
 	return client
 }
