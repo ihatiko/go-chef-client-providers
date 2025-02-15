@@ -10,8 +10,8 @@ type Config struct {
 	Password             string        `toml:"password"`
 	Hosts                []string      `toml:"hosts"`
 	DialTimeout          time.Duration `toml:"dial_timeout"`
-	MaxOpenConns         int           `toml:"max_open_conns" `
-	MaxIdleConns         int           `toml:"max_idle_conns" `
+	MaxOpenConnections   int           `toml:"max_open_connections"`
+	MaxIdleConnections   int           `toml:"max_idle_connections" `
 	ConnMaxLifetime      time.Duration `toml:"conn_max_lifetime"`
 	BlockBufferSize      uint8         `toml:"block_buffer_size"`
 	MaxCompressionBuffer int           `toml:"max_compression_buffer"`

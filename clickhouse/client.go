@@ -65,11 +65,11 @@ func (c Config) New() *Client {
 	if c.DialTimeout > 0 {
 		opts.DialTimeout = c.DialTimeout
 	}
-	if c.MaxOpenConns > 0 {
-		opts.MaxOpenConns = c.MaxOpenConns
+	if c.MaxOpenConnections > 0 {
+		opts.MaxOpenConns = c.MaxOpenConnections
 	}
-	if c.MaxIdleConns > 0 {
-		opts.MaxIdleConns = c.MaxIdleConns
+	if c.MaxIdleConnections > 0 {
+		opts.MaxIdleConns = c.MaxIdleConnections
 	}
 	if c.ConnMaxLifetime > 0 {
 		opts.ConnMaxLifetime = c.ConnMaxLifetime
