@@ -82,7 +82,7 @@ func (c *Client) checkKafkaConnectivity(ctx context.Context) error {
 	}
 	wg.Wait()
 	percent := 1 - float32(len(errorsGroup))/float32(len(c.config.Hosts))
-	if percent < 0.6 {
+	if percent > 0.6 {
 		return nil
 	}
 	return fmt.Errorf("kafka errors: %s", errorsGroup)
