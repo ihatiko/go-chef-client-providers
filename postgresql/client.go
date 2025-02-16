@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/ihatiko/go-chef-core-sdk/types"
 	"log"
 	"time"
 
@@ -18,6 +19,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
+var defaultTimeout = 5 * time.Second
+
 const (
 	maxOpenConnections   = 60
 	connMaxLifetime      = 120
@@ -27,7 +30,7 @@ const (
 	defaultSslMode       = "disable"
 )
 const (
-	postgresql    = "postgresql"
+	key           = "postgres"
 	defaultDriver = "pgx"
 )
 
@@ -64,35 +67,54 @@ func (c *Config) toPgConnection() string {
 }
 
 type Client struct {
-	Db        *sqlx.DB
-	cfg       *Config
-	initError error
+	types.Component
+	Db  *sqlx.DB
+	cfg *Config
 }
 
-func (c Client) Live(ctx context.Context) error {
+func (c *Client) GetKey() string {
+	return key
+}
+
+type Details struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Database string `json:"database"`
+	PgDriver string `json:"pg_driver"`
+}
+
+func (c *Client) Details() any {
+	details := Details{}
+	details.Host = c.cfg.Host
+	details.Port = c.cfg.Port
+	details.Database = c.cfg.Database
+	details.PgDriver = c.cfg.PgDriver
+	return details
+}
+
+func (c *Client) Live(ctx context.Context) error {
+	if c.Db == nil {
+		return c.Init.Error
+	}
 	return c.Db.PingContext(ctx)
 }
-func (c Client) Error() error {
-	return c.initError
-}
-func (c Client) HasError() bool {
-	return c.initError != nil
-}
 
-func (c Client) Name() string {
-	return fmt.Sprintf("name: %s host:%s port: %d database: %s", postgresql, c.cfg.Host, c.cfg.Port, c.cfg.Database)
-}
-func (c Client) AfterShutdown() error {
+func (c *Client) Shutdown() error {
 	return c.Db.Close()
 }
-func (c *Config) New() Client {
-	pg, err := c.newConnection()
-	client := Client{Db: pg, cfg: c, initError: err}
-	store.PackageStore.Load(client)
-	return client
+
+func (c *Client) Connection() *sqlx.DB {
+	defer store.PackageStore.Load(c)
+	if c.Db == nil {
+		return new(sqlx.DB)
+	}
+	c.AwaitPing()
+	return c.Db
 }
 
-func (c *Config) newConnection() (*sqlx.DB, error) {
+func (c *Config) New() *Client {
+	client := new(Client)
+	client.cfg = c
 	if c.PgDriver == "" {
 		c.PgDriver = defaultDriver
 	}
@@ -121,16 +143,16 @@ func (c *Config) newConnection() (*sqlx.DB, error) {
 		otelsql.WithDBName(c.Database),
 		otelsql.WithMeterProvider(getMetricProvider()),
 	)
+	client.Db = db
 	if err != nil {
-		return nil, err
+		client.Init.Error = err
+		store.PackageStore.Load(client)
+		return client
 	}
-
 	db.SetMaxOpenConns(c.MaxIdleConnections)
 	db.SetConnMaxLifetime(c.ConnMaxLifetime)
 	db.SetMaxIdleConns(c.MaxIdleConnections)
 	db.SetConnMaxIdleTime(c.ConnMaxIdleTime)
-	if err = db.Ping(); err != nil {
-		return nil, err
-	}
-	return db, err
+	client.Ping(defaultTimeout, client.Live)
+	return client
 }

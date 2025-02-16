@@ -91,8 +91,10 @@ func (c Config) New() *Client {
 	cli, err := etcd.New(config)
 	client.Db = cli
 	client.initError = err
+	ctx, cancel := context.WithTimeout(context.TODO(), c.DialTimeout)
 	if client.initError == nil {
-		client.initError = client.Live(context.TODO())
+		client.initError = client.Live(ctx)
 	}
+	defer cancel()
 	return client
 }

@@ -2,8 +2,8 @@ package redis
 
 import (
 	"context"
-	"fmt"
 	"github.com/ihatiko/go-chef-core-sdk/store"
+	"github.com/ihatiko/go-chef-core-sdk/types"
 	"time"
 
 	"github.com/redis/go-redis/extra/redisotel/v9"
@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	defaultHealthTimeout      = 5
 	defaultReadTimeout        = 5
 	defaultWriteTimeout       = 5
 	defaultConnMaxLifetime    = 120
@@ -22,33 +23,47 @@ const (
 )
 
 type Client struct {
-	Db        *redis.Client
-	cfg       *Config
-	initError error
+	types.Component
+	Db  *redis.Client
+	cfg *Config
 }
 
-func (c Client) Name() string {
-	return fmt.Sprintf("name: %s host:%s database:%d", key, c.cfg.Host, c.cfg.Database)
+func (c *Client) GetKey() string {
+	return key
 }
 
-func (c Client) Live(ctx context.Context) error {
-	return c.Db.Ping(ctx).Err()
+type Details struct {
+	Host          string   `json:"host,omitempty"`
+	Database      int      `toml:"database,omitempty"`
+	SentinelHosts []string `toml:"sentinel_hosts,omitempty"`
+	MasterName    string   `toml:"master_name,omitempty"`
 }
 
-func (c Client) Error() error {
-	return c.initError
+func (c *Client) Details() any {
+	details := Details{}
+	details.MasterName = c.cfg.MasterName
+	details.Host = c.cfg.Host
+	details.Database = c.cfg.Database
+	details.SentinelHosts = c.cfg.SentinelHosts
+	return details
 }
 
-func (c Client) HasError() bool {
-	return c.initError != nil
-}
-
-func (c Client) AfterShutdown() error {
+func (c *Client) Shutdown() error {
 	return c.Db.Close()
 }
-func (c *Config) New() Client {
-	client := Client{cfg: c}
-	defer store.PackageStore.Load(client)
+
+func (c *Client) Live(ctx context.Context) error {
+	return c.Db.Ping(ctx).Err()
+}
+func (c *Client) Connection() *redis.Client {
+	defer store.PackageStore.Load(c)
+	c.AwaitPing()
+	return c.Db
+}
+
+func (c *Config) New() *Client {
+	client := new(Client)
+	client.cfg = c
 	if c.ConnMaxLifetime == 0 {
 		c.ConnMaxLifetime = defaultConnMaxLifetime * time.Second
 	}
@@ -60,6 +75,9 @@ func (c *Config) New() Client {
 	}
 	if c.WriteTimeout == 0 {
 		c.WriteTimeout = defaultWriteTimeout * time.Second
+	}
+	if c.HealthTimeout == 0 {
+		c.HealthTimeout = defaultHealthTimeout * time.Second
 	}
 	if c.MaxIdleConnections == 0 {
 		c.MaxIdleConnections = defaultMaxIdleConnections
@@ -89,10 +107,10 @@ func (c *Config) New() Client {
 		})
 	}
 	if err := redisotel.InstrumentTracing(client.Db); err != nil {
-		client.initError = err
+		client.Init.Error = err
+		store.PackageStore.Load(client)
 		return client
 	}
-	client.initError = client.Db.Ping(context.Background()).Err()
-
+	client.Ping(c.ReadTimeout, client.Live)
 	return client
 }

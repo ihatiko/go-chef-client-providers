@@ -81,7 +81,7 @@ func (c Config) New() *Client {
 		opts.MaxCompressionBuffer = c.MaxCompressionBuffer
 	}
 	conn, err := clickhouse.Open(opts)
-	client.initError = err
 	client.Db = conn
+	client.initError = err
 	return client
 }

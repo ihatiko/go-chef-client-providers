@@ -5,55 +5,78 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ihatiko/go-chef-core-sdk/store"
+	"github.com/ihatiko/go-chef-core-sdk/types"
 	"resty.dev/v3"
+	"time"
+)
+
+const defaultTimeout = 3 * time.Second
+
+const (
+	key = "resty-http-client"
 )
 
 type Client struct {
-	config    Config
-	Client    *resty.Client
-	initError error
+	types.Component
+	config Config
+	client *resty.Client
 }
-
-func (c *Client) Error() error {
-	return c.initError
-}
-
-func (c *Client) HasError() bool {
-	return c.initError != nil
-}
-
-const (
-	key = "http client resty"
-)
 
 func (c *Client) Live(ctx context.Context) error {
-	return c.Health(ctx)
+	return c.liveness(ctx)
 }
-func (c *Client) AfterShutdown() error {
-	return c.Client.Close()
+func (c *Client) Shutdown() error {
+	if c.client == nil {
+		return nil
+	}
+	return c.client.Close()
 }
+
 func (c *Client) Name() string {
-	return fmt.Sprintf(
-		"name: %s hosts:%s",
-		key,
-		c.config.Host,
-	)
+	return c.Id.String()
+}
+
+type Details struct {
+	Host       string        `json:"host"`
+	HealthHost string        `json:"health_host"`
+	Timeout    time.Duration `json:"timeout"`
+}
+
+func (c *Client) GetKey() string {
+	return key
+}
+
+func (c *Client) Details() any {
+	details := new(Details)
+	details.Host = c.config.Host
+	details.HealthHost = c.config.HealthHost
+	details.Timeout = c.config.Timeout
+	return details
+}
+func (c *Client) Connection() *resty.Client {
+	defer store.PackageStore.Load(c)
+	c.AwaitPing()
+	return c.client
 }
 
 func (c Config) New() *Client {
 	client := new(Client)
-	defer store.PackageStore.Load(client)
+	if c.Timeout == 0 {
+		c.Timeout = defaultTimeout
+	}
 	client.config = c
 	restyClient := resty.New().
 		SetBaseURL(c.Host).
-		SetHeaders(c.Headers)
-	client.Client = restyClient
-	client.initError = client.Health(context.TODO())
+		SetHeaders(c.Headers).
+		SetTimeout(c.Timeout)
+
+	client.client = restyClient
+	client.Ping(c.Timeout, client.liveness)
 	return client
 }
 
-func (c *Client) Health(ctx context.Context) error {
-	response, err := c.Client.
+func (c *Client) liveness(ctx context.Context) error {
+	response, err := c.client.
 		NewRequest().
 		SetContext(ctx).
 		Get(c.config.HealthHost)

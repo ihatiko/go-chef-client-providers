@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"github.com/bytedance/sonic"
 	"github.com/ihatiko/go-chef-core-sdk/store"
+	"github.com/ihatiko/go-chef-core-sdk/types"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"go.opentelemetry.io/otel"
-	"strings"
 	"sync"
+	"time"
 )
 
 type IClient interface {
@@ -20,35 +21,44 @@ type IClient interface {
 	ProduceByPartitionKey(ctx context.Context, key string, data ...any) error
 }
 type Client struct {
-	config    Config
-	writer    *kafka.Writer
-	initError error
+	types.Component
+	config Config
+	writer *kafka.Writer
 }
 
-func (c *Client) Error() error {
-	return c.initError
+func (c *Client) GetKey() string {
+	return key
+}
+
+type Details struct {
+	Hosts []string `json:"hosts"`
+	Topic string   `json:"topic"`
+}
+
+func (c *Client) Details() any {
+	details := Details{}
+	details.Hosts = c.config.Hosts
+	details.Topic = c.config.Topic
+	return details
 }
 
 const (
 	key = "kafka-producer"
 )
 
-func (c *Client) Name() string {
-	return fmt.Sprintf(
-		"name: %s hosts:%s topic:%s",
-		key,
-		strings.Join(c.config.Hosts, ","),
-		c.config.Topic,
-	)
-}
 func (c *Client) Live(ctx context.Context) error {
 	return c.checkKafkaConnectivity(ctx)
 }
+func (c *Client) Connection() IClient {
+	defer store.PackageStore.Load(c)
+	c.AwaitPing()
+	return c
+}
+
 func (c *Client) getDialer() *kafka.Dialer {
 	dialer := &kafka.Dialer{
 		Timeout:   c.config.DialTimeout,
 		DualStack: true,
-		TLS:       &tls.Config{},
 	}
 	if c.config.Login != "" {
 		mechanism := &plain.Mechanism{
@@ -70,14 +80,15 @@ func (c *Client) getDialer() *kafka.Dialer {
 }
 func (c *Client) checkKafkaConnectivity(ctx context.Context) error {
 	var errorsGroup []error
-
 	wg := &sync.WaitGroup{}
 	wg.Add(len(c.config.Hosts))
 	for _, addr := range c.config.Hosts {
 		go func(addr string) {
 			defer wg.Done()
 			_, err := c.getDialer().DialContext(ctx, "tcp", addr)
-			errorsGroup = append(errorsGroup, err)
+			if err != nil {
+				errorsGroup = append(errorsGroup, err)
+			}
 		}(addr)
 	}
 	wg.Wait()
@@ -87,10 +98,8 @@ func (c *Client) checkKafkaConnectivity(ctx context.Context) error {
 	}
 	return fmt.Errorf("kafka errors: %s", errorsGroup)
 }
-func (c *Client) HasError() bool {
-	return c.initError != nil
-}
-func (c *Client) AfterShutdown() error {
+
+func (c *Client) Shutdown() error {
 	return c.writer.Close()
 }
 func (c *Client) Produce(ctx context.Context, data ...any) error {
@@ -150,24 +159,24 @@ func (c *Client) innerProducer(ctx context.Context, key string, data ...any) err
 func (c *Client) ProduceByPartitionKey(ctx context.Context, key string, data ...any) error {
 	return c.innerProducer(ctx, key, data)
 }
-func (c *Config) New() IClient {
+func (c *Config) New() *Client {
 	client := new(Client)
 	client.config = *c
-	defer store.PackageStore.Load(client)
 	if len(client.config.Hosts) == 0 {
-		client.initError = errors.New("no hosts provided")
+		client.Init.Error = errors.New("no hosts provided")
+		store.PackageStore.Load(client)
 		return client
 	}
-	client.writer, client.initError = c.newWriter()
-	if client.initError != nil {
-		return client
-	}
-	client.initError = client.checkKafkaConnectivity(context.TODO())
+	client.writer = c.newWriter()
+	client.Ping(c.DialTimeout, client.Live)
 	return client
 }
 
-func (c *Config) newWriter() (*kafka.Writer, error) {
+func (c *Config) newWriter() *kafka.Writer {
 	transport := new(kafka.Transport)
+	if c.DialTimeout == 0 {
+		c.DialTimeout = time.Second * 5
+	}
 	if c.DialTimeout > 0 {
 		transport.DialTimeout = c.DialTimeout
 	}
@@ -228,5 +237,5 @@ func (c *Config) newWriter() (*kafka.Writer, error) {
 	if c.WriteBackoffMin > 0 {
 		writer.WriteBackoffMin = c.WriteBackoffMin
 	}
-	return writer, nil
+	return writer
 }
