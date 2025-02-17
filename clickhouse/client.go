@@ -2,44 +2,49 @@ package clickhouse
 
 import (
 	"context"
-	"fmt"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ihatiko/go-chef-core-sdk/store"
+	"github.com/ihatiko/go-chef-core-sdk/types"
 	"net"
-	"strings"
+	"time"
 )
 
 type Client struct {
-	config    Config
-	Db        clickhouse.Conn
-	initError error
+	types.Component
+	config Config
+	Db     clickhouse.Conn
 }
 
-func (c *Client) Error() error {
-	return c.initError
+func (c *Client) GetKey() string {
+	return key
 }
 
-func (c *Client) HasError() bool {
-	return c.initError != nil
+type Details struct {
+	Database string `json:"database"`
+	Host     string `json:"host"`
+}
+
+func (c *Client) Details() any {
+	details := new(Details)
+	details.Database = c.config.Database
+	details.Host = c.config.Login
+	return details
+}
+
+func (c *Client) Live(ctx context.Context) error {
+	return c.Db.Ping(ctx)
 }
 
 const (
 	key = "clickhouse"
 )
 
-func (c *Client) AfterShutdown() error {
+func (c *Client) Shutdown() error {
 	return c.Db.Close()
 }
-func (c *Client) Name() string {
-	return fmt.Sprintf(
-		"name: %s hosts:%s",
-		key,
-		strings.Join(c.config.Hosts, ","),
-	)
-}
+
 func (c Config) New() *Client {
 	client := new(Client)
-	defer store.PackageStore.Load(client)
 	client.config = c
 	opts := &clickhouse.Options{
 		Addr: c.Hosts,
@@ -62,6 +67,9 @@ func (c Config) New() *Client {
 			"max_execution_time": c.MaxExecTime,
 		}
 	}
+	if c.DialTimeout == 0 {
+		c.DialTimeout = time.Second * 5
+	}
 	if c.DialTimeout > 0 {
 		opts.DialTimeout = c.DialTimeout
 	}
@@ -81,7 +89,17 @@ func (c Config) New() *Client {
 		opts.MaxCompressionBuffer = c.MaxCompressionBuffer
 	}
 	conn, err := clickhouse.Open(opts)
+	if err != nil {
+		client.Init.Error = err
+		store.PackageStore.Load(client)
+		return client
+	}
 	client.Db = conn
-	client.initError = err
+	client.Ping(c.DialTimeout, client.Live)
 	return client
+}
+func (c *Client) Connection() clickhouse.Conn {
+	defer store.PackageStore.Load(c)
+	c.AwaitPing()
+	return c.Db
 }

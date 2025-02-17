@@ -6,25 +6,40 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/ihatiko/go-chef-core-sdk/store"
+	"github.com/ihatiko/go-chef-core-sdk/types"
 	etcd "go.etcd.io/etcd/client/v3"
-	"strings"
 	"sync"
+	"time"
 )
 
 type Client struct {
-	config    Config
-	Db        *etcd.Client
-	initError error
+	types.Component
+	config Config
+	Db     *etcd.Client
 }
 
-func (c *Client) Error() error {
-	return c.initError
+func (c *Client) GetKey() string {
+	return key
 }
 
-func (c *Client) HasError() bool {
-	return c.initError != nil
+type Details struct {
+	Hosts []string `json:"hosts"`
 }
+
+func (c *Client) Details() any {
+	details := new(Details)
+	details.Hosts = c.config.Hosts
+	return details
+}
+
+func (c *Client) Shutdown() error {
+	return c.Db.Close()
+}
+
 func (c *Client) Live(ctx context.Context) error {
+	if c.Db == nil {
+		return c.Init.Error
+	}
 	var errorsGroup []error
 
 	wg := &sync.WaitGroup{}
@@ -33,7 +48,9 @@ func (c *Client) Live(ctx context.Context) error {
 		go func(addr string) {
 			defer wg.Done()
 			_, err := c.Db.Status(ctx, addr)
-			errorsGroup = append(errorsGroup, err)
+			if err != nil {
+				errorsGroup = append(errorsGroup, err)
+			}
 		}(addr)
 	}
 	wg.Wait()
@@ -47,21 +64,16 @@ func (c *Client) Live(ctx context.Context) error {
 const (
 	key = "etcd"
 )
+const (
+	defaultTimeout = 5 * time.Second
+)
 
-func (c *Client) AfterShutdown() error {
-	return c.Db.Close()
-}
-func (c *Client) Name() string {
-	return fmt.Sprintf(
-		"name: %s hosts:%s",
-		key,
-		strings.Join(c.config.Hosts, ","),
-	)
-}
 func (c Config) New() *Client {
 	client := new(Client)
-	defer store.PackageStore.Load(client)
 	client.config = c
+	if c.DialTimeout == 0 {
+		c.DialTimeout = defaultTimeout
+	}
 	config := etcd.Config{
 		Endpoints:             c.Hosts,
 		Username:              c.Login,
@@ -89,12 +101,17 @@ func (c Config) New() *Client {
 		config.TLS = tlsConfig
 	}
 	cli, err := etcd.New(config)
-	client.Db = cli
-	client.initError = err
-	ctx, cancel := context.WithTimeout(context.TODO(), c.DialTimeout)
-	if client.initError == nil {
-		client.initError = client.Live(ctx)
+	if err != nil {
+		client.Init.Error = err
+		store.PackageStore.Load(client)
+		return client
 	}
-	defer cancel()
+	client.Db = cli
+	client.Ping(c.DialTimeout, client.Live)
 	return client
+}
+func (c *Client) Connection() *etcd.Client {
+	defer store.PackageStore.Load(c)
+	c.AwaitPing()
+	return c.Db
 }
