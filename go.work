@@ -8,4 +8,5 @@ use (
 	./postgresql
 	./redis
 	./s3
+	./gitlab
 )
