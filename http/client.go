@@ -67,8 +67,7 @@ func (c Config) New() *Client {
 	client.config = c
 	restyClient := resty.New().
 		SetBaseURL(c.Host).
-		SetHeaders(c.Headers).
-		SetTimeout(c.Timeout)
+		SetHeaders(c.Headers)
 
 	client.client = restyClient
 	client.Ping(c.Timeout, client.liveness)
